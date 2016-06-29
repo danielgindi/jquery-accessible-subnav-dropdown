@@ -11,7 +11,6 @@
         if (!$subnav.length) return
         
         // Support both class and data selectors, user's choice...
-        
         $subnav
             .toggleClass('sub-menu-hidden', !show) // "hidden" class for css selector
             .toggleClass('sub-menu-visible', !!show) // "visible" class for css selector
@@ -53,6 +52,26 @@
                 
             // Initialize items' "role" for accessibility
             $menu.find('li').attr({ 'role': 'menuitem' });
+            
+            // Helper to handle focus moving between items, in nested menus
+            var FOCUS_TIMEOUT = null;
+            var checkFocusPosition = function () {
+                if (!jQuery.contains($menu, document.activeElement)) {
+                    //toggleSubnav($menu.find('.sub-menu-visible'), false);
+                }
+            };
+            var scheduleFocusout = function () {
+                if (FOCUS_TIMEOUT) return;
+                FOCUS_TIMEOUT = setTimeout(function () {
+                    checkFocusPosition();
+                    FOCUS_TIMEOUT = null;
+                }, 0);
+            };
+            var unscheduleFocusout = function () {
+                if (!FOCUS_TIMEOUT) return;
+                clearTimeout(FOCUS_TIMEOUT);
+                FOCUS_TIMEOUT = null;
+            };
 
             // Bind events for menu and items
             $menu.on('mouseenter', '>li', function(event) {
@@ -74,27 +93,23 @@
 
                 })
                 // keyboard
-                .on('focus', '>li>a', function (event) {
+                .on('focus', 'li>a', function (event) {
                     
                     var $this = $(this),
                         $subnav = $this.next('ul');
 
                     // hide other menus
-                    toggleSubnav($menu.find('ul'), false);
+                    toggleSubnav($menu.find('ul').not($subnav).not($this.parentsUntil($menu, 'ul')), false);
 
                     // show submenu
                     toggleSubnav($subnav, true);
-
+                    
+                    unscheduleFocusout();
                 })
-                .on('focusout', '>li>a', function (event) {
-                    var $this = $(this),
-                        $parent_item = $this.closest('li'),
-                        $subnav = $this.next('ul');
-
-                    // hide submenu
-                    toggleSubnav($subnav, true);
+                .on('focusout', 'li>a', function (event) {
+                    scheduleFocusout();
                 })
-                .on('keydown', '>li>a', function (event) {
+                .on('keydown', 'li>a', function (event) {
                     var $this = $(this),
                         $parent_item = $this.closest('li'),
                         $subnav = $this.next('ul');
@@ -270,26 +285,6 @@
                         }
                     }
 
-                })
-                .on('focus', 'ul li > a', function (event) {
-                    var $this = $(this),
-                        $subnav = $this.closest('ul'),
-                        $nav_link = $subnav.prev('a'),		
-                        $nav_item = $nav_link.closest('li');		
- 		 
-                    $nav_item.attr({
-                        'data-show-sub': 'true'
-                    });
-                })
-                .on('focusout', 'ul li > a', function (event) {
-                    var $this = $(this),
-                        $subnav = $this.closest('ul'),
-                        $nav_link = $subnav.prev('a'),		
-                        $nav_item = $nav_link.closest('li');		
- 		 
-                    $nav_item.attr({
-                        'data-show-sub': 'false'
-                    });
                 });
 
         });
