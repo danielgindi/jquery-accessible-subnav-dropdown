@@ -7,8 +7,26 @@
      */
  
     // Helper to show/hide submenu and setup appropriate attributes
-    var toggleSubnav = function ($subnav, show) {
-        if (!$subnav.length) return
+    var toggleSubnav = function ($subnav, show, timeout) {
+        if (!$subnav.length) return;
+        
+        // Clear previous timeout
+        if ($subnav.data('menu-hide-timeout-handle')) {
+            clearTimeout($subnav.data('menu-hide-timeout-handle'));
+            $subnav.removeData('menu-hide-timeout-handle');
+        }
+        
+        // When hiding - we might want to use a slight delay.
+        // This is because a possible gap between the parent menu and submenu,
+        //   which will cause a "mouseleave" on the way to the submenu.
+        if (!show && timeout) {
+            // Set hide timeout
+            var t = setTimeout(function () {
+                toggleSubnav($subnav, show);
+            }, timeout);
+            $subnav.data('menu-hide-timeout-handle', t);
+            return;
+        }
         
         // Support both class and data selectors, user's choice...
         $subnav
@@ -89,7 +107,7 @@
                         $subnav = $this.children('ul');
 
                     // hide submenu
-                    toggleSubnav($subnav, false);
+                    toggleSubnav($subnav, false, 100);
 
                 })
                 // keyboard
