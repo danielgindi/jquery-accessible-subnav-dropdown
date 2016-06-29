@@ -14,20 +14,27 @@
 
             var $menu = $(this);
 
+            // Detect direction of menu (for left/right keys)
             var rtl = $menu.css('direction') === 'rtl';
 
             $menu.find('ul')
+                // Initialize sub-menu-hidden for all sub menus
                 .addClass('sub-menu-hidden')
                 .removeClass('sub-menu-visible')
+                // Initialize submenus "role" for accessibility
                 .attr({
                     'role': 'menu'
                 })
+                // Initialize ARIA properties for submenus
                 .closest('li').attr({
                     'aria-haspopup': 'true',
                     'aria-expanded': 'false'
                 });
+                
+            // Initialize items' "role" for accessibility
             $menu.find('li').attr({ 'role': 'menuitem' });
 
+            // Bind events for menu and items
             $menu.on('mouseenter', '>li', function(event) {
                     var $this = $(this),
                         $subnav_link = $this.children('a'),
@@ -177,7 +184,7 @@
 
                 });
 
-            // events on submenu item
+            // Bind events for submenu items
             $menu.on('keydown', 'ul li > a', function (event) {
                     var $this = $(this),
                         $subnav = $this.closest('ul'),
