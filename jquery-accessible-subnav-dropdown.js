@@ -6,6 +6,26 @@
      * License MIT: https://github.com/nico3333fr/jquery-accessible-subnav-dropdown/blob/master/LICENSE
      */
  
+    // Helper to show/hide submenu and setup appropriate attributes
+    var toggleSubnav = function ($subnav, show) {
+        if (!$subnav.length) return
+        
+        // Support both class and data selectors, user's choice...
+        
+        $subnav
+            .toggleClass('sub-menu-hidden', !show) // "hidden" class for css selector
+            .toggleClass('sub-menu-visible', !!show) // "visible" class for css selector
+            .attr({
+                'data-visually-hidden': !show // "hidden" data for css selector
+            })
+            .closest('li')
+                .toggleClass('menu-item-show-sub', !!show) // "show-sub" class for css selector
+                .attr({
+                    'data-show-sub': show ? 'true' : 'false', // "show-sub" data for css selector
+                    'aria-expanded': show ? 'true' : 'false' // Aria "expanded" attribute
+                });
+    };
+    
     $.fn.accessibleMenu = function () {
 
         var $body = $(document.body);
@@ -36,71 +56,43 @@
 
             // Bind events for menu and items
             $menu.on('mouseenter', '>li', function(event) {
+                
                     var $this = $(this),
-                        $subnav_link = $this.children('a'),
                         $subnav = $this.children('ul');
 
-                    $this.attr({
-                        'data-show-sub': 'true'
-                    });
-
                     // show submenu
-                    if ($subnav.length === 1) {
-                        $subnav
-                            .removeClass('sub-menu-hidden')
-                            .addClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'true' });
-                    }
+                    toggleSubnav($subnav, true);
 
                 })
                 .on('mouseleave', '>li', function(event) {
+                    
                     var $this = $(this),
-                        $subnav_link = $this.children('a'),
                         $subnav = $this.children('ul');
 
-                    $this.attr({
-                        'data-show-sub': 'false'
-                    });
-                    // show submenu
-                    if ($subnav.length === 1) {
-                        $subnav
-                            .addClass('sub-menu-hidden')
-                            .removeClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'false' });
-                    }
+                    // hide submenu
+                    toggleSubnav($subnav, false);
 
                 })
                 // keyboard
                 .on('focus', '>li>a', function (event) {
+                    
                     var $this = $(this),
-                        $parent_item = $this.closest('li'),
                         $subnav = $this.next('ul');
 
-                    $parent_item.attr({
-                        'data-show-sub': 'true'
-                    });
+                    // hide other menus
+                    toggleSubnav($menu.find('ul'), false);
 
-                    // hide other menus and show submenu activated
-                    $menu.find('ul')
-                        .addClass('sub-menu-hidden')
-                        .removeClass('sub-menu-visible')
-                        .closest('li').attr({ 'aria-expanded': 'false' });
-
-                    if ($subnav.length === 1) {
-                        $subnav
-                            .removeClass('sub-menu-hidden')
-                            .addClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'true' });
-                    }
+                    // show submenu
+                    toggleSubnav($subnav, true);
 
                 })
                 .on('focusout', '>li>a', function (event) {
                     var $this = $(this),
-                        $parent_item = $this.closest('li');
+                        $parent_item = $this.closest('li'),
+                        $subnav = $this.next('ul');
 
-                    $parent_item.attr({
-                        'data-show-sub': 'false'
-                    });
+                    // hide submenu
+                    toggleSubnav($subnav, true);
                 })
                 .on('keydown', '>li>a', function (event) {
                     var $this = $(this),
@@ -144,10 +136,7 @@
                         // select first nav-system__subnav__link
                         if ($subnav.length === 1) {
                             // if submenu has been closed => reopen
-                            $subnav
-                                .removeClass('sub-menu-hidden')
-                                .addClass('sub-menu-visible')
-                                .closest('li').attr({ 'aria-expanded': 'true' });
+                            toggleSubnav($subnav, true);
 
                             // and select first item
                             $subnav.find(" li:first-child > a").focus();
@@ -158,24 +147,14 @@
                     // event shift + tab 
                     if (event.shiftKey && event.keyCode == 9) {
                         if ($parent_item.is("li:first-child")) {
-                            $subnav
-                                .addClass('sub-menu-hidden')
-                                .removeClass('sub-menu-visible')
-                                .closest('li').attr({ 'aria-expanded': 'false' });
+                            toggleSubnav($subnav, false);
                         } else {
 
                             var $prev_nav_link = $parent_item.prev('li').children("a");
                             $subnav_prev = $prev_nav_link.next('ul');
                             if ($subnav_prev.length === 1) { // hide current subnav, show previous and select last element
-                                $subnav
-                                    .addClass('sub-menu-hidden')
-                                    .removeClass('sub-menu-visible')
-                                    .closest('li').attr({ 'aria-expanded': 'false' });
-
-                                $subnav_prev
-                                    .removeClass('sub-menu-hidden')
-                                    .addClass('sub-menu-visible')
-                                    .closest('li').attr({ 'aria-expanded': 'true' });
+                                toggleSubnav($subnav, false);
+                                toggleSubnav($subnav_prev, true);
                                 $subnav_prev.find(" li:last-child > a").focus();
                                 event.preventDefault();
                             }
@@ -222,21 +201,16 @@
                     if (event.keyCode == 27) {
                         // close the menu
                         $nav_link.focus();
-                        $subnav
-                            .addClass('sub-menu-hidden')
-                            .removeClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'false' });
+                        toggleSubnav($subnav, false);
                         event.preventDefault();
                     }
 
-                    // event keyboard right
+                    // event keyboard right (next link)
                     if ((event.keyCode === 39 && !rtl) ||
                         (event.keyCode === 37 && rtl)) {
-                        // select next link
-                        $subnav
-                            .addClass('sub-menu-hidden')
-                            .removeClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'false' });
+                            
+                        // hide submenu
+                        toggleSubnav($subnav, false);
 
                         // if we are on last => activate first and choose first item
                         if ($nav_item.is("li:last-child")) {
@@ -259,14 +233,12 @@
                         event.preventDefault();
                     }
 
-                    // event keyboard left
+                    // event keyboard left (prev link)
                     if ((event.keyCode === 37 && !rtl) ||
                         (event.keyCode === 39 && rtl)) {
-                        // select prev link
-                        $subnav
-                            .addClass('sub-menu-hidden')
-                            .removeClass('sub-menu-visible')
-                            .closest('li').attr({ 'aria-expanded': 'false' });
+                        
+                        // hide submenu
+                        toggleSubnav($subnav, false);
 
                         // if we are on first => activate last and choose first item
                         if ($nav_item.is("li:first-child")) {
@@ -290,12 +262,11 @@
                     }
 
                     // event tab 
-                    if (event.keyCode == 9 && !event.shiftKey) { // if we are on last subnav of last item and we go forward => hide subnav 
+                    if (event.keyCode == 9 && !event.shiftKey) {
+                        // if we are on last subnav of last item and we go forward
                         if ($nav_item.is("li:last-child") && $subnav_item.is("li:last-child")) {
-                            $subnav
-                                .addClass('sub-menu-hidden')
-                                .removeClass('sub-menu-visible')
-                                .closest('li').attr({ 'aria-expanded': 'false' });
+                            // hide submenu
+                            toggleSubnav($subnav, false);
                         }
                     }
 
@@ -303,10 +274,9 @@
                 .on('focus', 'ul li > a', function (event) {
                     var $this = $(this),
                         $subnav = $this.closest('ul'),
-                        $subnav_item = $this.closest('li'),
-                        $nav_link = $subnav.prev('a'),
-                        $nav_item = $nav_link.closest('li');
-
+                        $nav_link = $subnav.prev('a'),		
+                        $nav_item = $nav_link.closest('li');		
+ 		 
                     $nav_item.attr({
                         'data-show-sub': 'true'
                     });
@@ -314,10 +284,9 @@
                 .on('focusout', 'ul li > a', function (event) {
                     var $this = $(this),
                         $subnav = $this.closest('ul'),
-                        $subnav_item = $this.closest('li'),
-                        $nav_link = $subnav.prev('a'),
-                        $nav_item = $nav_link.closest('li');
-
+                        $nav_link = $subnav.prev('a'),		
+                        $nav_item = $nav_link.closest('li');		
+ 		 
                     $nav_item.attr({
                         'data-show-sub': 'false'
                     });
