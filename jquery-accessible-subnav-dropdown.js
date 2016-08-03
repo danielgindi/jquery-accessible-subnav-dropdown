@@ -139,7 +139,9 @@
 
                         // if we are on first => activate last
                         if ($parent_item.is("li:first-child")) {
-                            $menu.find(" >li:last-child > a").focus();
+                            $parent_item
+                                .closest('ul')
+                                .find(" >li:last-child > a").focus();
                         }
                         // else activate previous
                         else {
@@ -155,7 +157,9 @@
 
                         // if we are on last => activate first
                         if ($parent_item.is("li:last-child")) {
-                            $menu.find(" li:first-child > a").focus();
+                            $parent_item
+                                .closest('ul')
+                                .find(" >li:first-child > a").focus();
                         }
                         // else activate next
                         else {
