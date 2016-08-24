@@ -44,13 +44,13 @@
         if ($item.is(next ? "li:last-child" : "li:first-child")) {
             $next = $item
                 .closest('ul')
-                .find(next ? " li:first-child > a" : " li:last-child > a")
+                .find(next ? " > li:first-child > a" : " > li:last-child > a")
                 .focus();
                 
             if (focusSubnav) {
                 var $nextSubnav = $next.next('ul');
                 if ($nextSubnav.length === 1) {
-                    $nextSubnav.find(" li:first-child > a").focus();
+                    $nextSubnav.find(" > li:first-child > a").focus();
                 }
             }
         }
@@ -63,7 +63,7 @@
             if (focusSubnav) {
                 $nextSubnav = $next.next('ul');
                 if ($nextSubnav.length === 1) {
-                    $nextSubnav.find(" li:first-child > a").focus();
+                    $nextSubnav.find(" > li:first-child > a").focus();
                 }
             }
         }
@@ -186,7 +186,7 @@
                             toggleSubnav($subnav, true);
 
                             // and select first item
-                            $subnav.find(" li:first-child > a").focus();
+                            $subnav.find(" > li:first-child > a").focus();
                         }
                         else {
                             shouldTryToMoveInParent = true;
