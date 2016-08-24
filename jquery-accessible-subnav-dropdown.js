@@ -7,26 +7,8 @@
      */
  
     // Helper to show/hide submenu and setup appropriate attributes
-    var toggleSubnav = function ($subnav, show, timeout) {
-        if (!$subnav.length) return;
-        
-        // Clear previous timeout
-        if ($subnav.data('menu-hide-timeout-handle')) {
-            clearTimeout($subnav.data('menu-hide-timeout-handle'));
-            $subnav.removeData('menu-hide-timeout-handle');
-        }
-        
-        // When hiding - we might want to use a slight delay.
-        // This is because a possible gap between the parent menu and submenu,
-        //   which will cause a "mouseleave" on the way to the submenu.
-        if (!show && timeout) {
-            // Set hide timeout
-            var t = setTimeout(function () {
-                toggleSubnav($subnav, show);
-            }, timeout);
-            $subnav.data('menu-hide-timeout-handle', t);
-            return;
-        }
+    var toggleSubnav = function ($subnav, show) {
+        if (!$subnav.length) return
         
         // Support both class and data selectors, user's choice...
         $subnav
@@ -41,6 +23,50 @@
                     'data-show-sub': show ? 'true' : 'false', // "show-sub" data for css selector
                     'aria-expanded': show ? 'true' : 'false' // Aria "expanded" attribute
                 });
+    };
+    
+    var getHorizontalMode = function ($item) {
+        var y1 = $item.position().top, 
+            y2 = NaN;
+        if ($item.prev().length) {
+            y2 = $item.prev().position().top;
+        } else if ($item.next().length) {
+            y2 = $item.next().position().top;
+        }
+        
+        return y2 === y1 || isNaN(y2);
+    };
+    
+    var gotoNextForItem = function ($item, next, focusSubnav) {
+        var $next, $nextSubnav;
+        
+        // find next/prev
+        if ($item.is(next ? "li:last-child" : "li:first-child")) {
+            $next = $item
+                .closest('ul')
+                .find(next ? " li:first-child > a" : " li:last-child > a")
+                .focus();
+                
+            if (focusSubnav) {
+                var $nextSubnav = $next.next('ul');
+                if ($nextSubnav.length === 1) {
+                    $nextSubnav.find(" li:first-child > a").focus();
+                }
+            }
+        }
+        // wrap around
+        else {
+            $next = (next ? $item.next() : $item.prev())
+                .children("a")
+                .focus();
+                
+            if (focusSubnav) {
+                $nextSubnav = $next.next('ul');
+                if ($nextSubnav.length === 1) {
+                    $nextSubnav.find(" li:first-child > a").focus();
+                }
+            }
+        }
     };
     
     $.fn.accessibleMenu = function () {
@@ -92,7 +118,7 @@
             };
 
             // Bind events for menu and items
-            $menu.on('mouseenter', '>li', function(event) {
+            $menu.on('mouseenter', 'li', function(event) {
                 
                     var $this = $(this),
                         $subnav = $this.children('ul');
@@ -101,13 +127,13 @@
                     toggleSubnav($subnav, true);
 
                 })
-                .on('mouseleave', '>li', function(event) {
+                .on('mouseleave', 'li', function(event) {
                     
                     var $this = $(this),
                         $subnav = $this.children('ul');
 
                     // hide submenu
-                    toggleSubnav($subnav, false, 100);
+                    toggleSubnav($subnav, false);
 
                 })
                 // keyboard
@@ -130,47 +156,31 @@
                 .on('keydown', 'li>a', function (event) {
                     var $this = $(this),
                         $parent_item = $this.closest('li'),
-                        $subnav = $this.next('ul');
+                        $subnav = $this.next('ul'),
+                        $currentSubnav, $parentItem;
+                        
+                    var isHorizontal = getHorizontalMode($parent_item);
+                    var prevCode = isHorizontal ? (rtl ? 39 : 37) : 38;
+                    var nextCode = isHorizontal ? (rtl ? 37 : 39) : 40;
+                    var inSubmenuCode = isHorizontal ? 40 : (rtl ? 37 : 39);
+                    var outSubmenuCode = isHorizontal ? 38 : (rtl ? 39 : 37);
+                    var shouldTryToMoveInParent = false;
 
-                    // event keyboard left
-                    if ((event.keyCode === 37 && !rtl) ||
-                        (event.keyCode === 39 && rtl)) {
-                        // select previous link
-
-                        // if we are on first => activate last
-                        if ($parent_item.is("li:first-child")) {
-                            $parent_item
-                                .closest('ul')
-                                .find(" >li:last-child > a").focus();
-                        }
-                        // else activate previous
-                        else {
-                            $parent_item.prev().children("a").focus();
-                        }
+                    // Keyboard in "previous" direction
+                    if (event.keyCode === prevCode) {
+                        gotoNextForItem($parent_item, false, false);
                         event.preventDefault();
                     }
 
-                    // event keyboard right
-                    if ((event.keyCode === 39 && !rtl) ||
-                        (event.keyCode === 37 && rtl)) {
-                        // select previous link
-
-                        // if we are on last => activate first
-                        if ($parent_item.is("li:last-child")) {
-                            $parent_item
-                                .closest('ul')
-                                .find(" >li:first-child > a").focus();
-                        }
-                        // else activate next
-                        else {
-                            $parent_item.next().children("a").focus();
-                        }
+                    // Keyboard in "next" direction
+                    if (event.keyCode === nextCode) {
+                        gotoNextForItem($parent_item, true, false);
                         event.preventDefault();
                     }
 
-                    // event keyboard bottom
-                    if (event.keyCode == 40) {
-                        // select first nav-system__subnav__link
+                    // Keyboard in "dive into submenu" direction
+                    if (event.keyCode === inSubmenuCode) {
+                        
                         if ($subnav.length === 1) {
                             // if submenu has been closed => reopen
                             toggleSubnav($subnav, true);
@@ -178,7 +188,52 @@
                             // and select first item
                             $subnav.find(" li:first-child > a").focus();
                         }
+                        else {
+                            shouldTryToMoveInParent = true;
+                        }
+                        
                         event.preventDefault();
+                    }
+                    
+                    // Escape, or arrow in "close submenu" direction
+                    if (event.keyCode === 27 ||
+                        event.keyCode === outSubmenuCode) {
+                        shouldTryToMoveInParent = true;
+                    }
+                    
+                    if (shouldTryToMoveInParent) {
+                        $currentSubnav = $this.closest('ul');
+                        $parentItem = $currentSubnav.closest('li');
+                        
+                        if (!$currentSubnav.length || !$menu.has($currentSubnav).length) {
+                            $currentSubnav = $parentItem = null;
+                        }
+                        else if (!$parentItem.length || !$menu.has($parentItem).length) {
+                            $parentItem = null;
+                        }
+                        
+                        if ($currentSubnav) {
+                            // Close this subnav and focus on parent item link
+                            $currentSubnav.prev('a').focus();
+                            toggleSubnav($currentSubnav, false);
+                            event.preventDefault();
+                        }
+                        
+                        if ($parentItem) {
+                            // Try to navigate to prev/next in parent menu
+                            var isParentHorizontal = getHorizontalMode($parentItem);
+                            if (isParentHorizontal != isHorizontal) {
+                                var parentPrevCode = isParentHorizontal ? (rtl ? 39 : 37) : 38;
+                                var parentNextCode = isParentHorizontal ? (rtl ? 37 : 39) : 40;
+                                                        
+                                if (event.keyCode === parentPrevCode ||
+                                    event.keyCode === parentNextCode) {
+
+                                    gotoNextForItem($parentItem, event.keyCode === parentNextCode, true);
+                                    event.preventDefault();
+                                }
+                            }
+                        }
                     }
 
                     // event shift + tab 
@@ -195,115 +250,6 @@
                                 $subnav_prev.find(" li:last-child > a").focus();
                                 event.preventDefault();
                             }
-                        }
-                    }
-
-                });
-
-            // Bind events for submenu items
-            $menu.on('keydown', 'ul li > a', function (event) {
-                    var $this = $(this),
-                        $subnav = $this.closest('ul'),
-                        $subnav_item = $this.closest('li'),
-                        $nav_link = $subnav.prev('a'),
-                        $nav_item = $nav_link.closest('li');
-
-                    // event keyboard bottom
-                    if (event.keyCode == 40) {
-                        // if we are on last => activate first
-                        if ($subnav_item.is("li:last-child")) {
-                            $subnav.find("li:first-child > a").focus();
-                        }
-                        // else activate next
-                        else {
-                            $subnav_item.next().children("a").focus();
-                        }
-                        event.preventDefault();
-                    }
-
-                    // event keyboard top
-                    if (event.keyCode == 38) {
-                        // if we are on first => activate last
-                        if ($subnav_item.is("li:first-child")) {
-                            $subnav.find(" li:last-child > a").focus();
-                        }
-                        // else activate previous
-                        else {
-                            $subnav_item.prev().children("a").focus();
-                        }
-                        event.preventDefault();
-                    }
-
-                    // event keyboard Esc
-                    if (event.keyCode == 27) {
-                        // close the menu
-                        $nav_link.focus();
-                        toggleSubnav($subnav, false);
-                        event.preventDefault();
-                    }
-
-                    // event keyboard right (next link)
-                    if ((event.keyCode === 39 && !rtl) ||
-                        (event.keyCode === 37 && rtl)) {
-                            
-                        // hide submenu
-                        toggleSubnav($subnav, false);
-
-                        // if we are on last => activate first and choose first item
-                        if ($nav_item.is("li:last-child")) {
-                            $next = $menu.find(" li:first-child > a");
-                            $next.focus();
-                            $subnav_next = $next.next('ul');
-                            if ($subnav_next.length === 1) {
-                                $subnav_next.find(" li:first-child > a").focus();
-                            }
-                        }
-                        // else activate next
-                        else {
-                            $next = $nav_item.next().children("a");
-                            $next.focus();
-                            $subnav_next = $next.next('ul');
-                            if ($subnav_next.length === 1) {
-                                $subnav_next.find(" li:first-child > a").focus();
-                            }
-                        }
-                        event.preventDefault();
-                    }
-
-                    // event keyboard left (prev link)
-                    if ((event.keyCode === 37 && !rtl) ||
-                        (event.keyCode === 39 && rtl)) {
-                        
-                        // hide submenu
-                        toggleSubnav($subnav, false);
-
-                        // if we are on first => activate last and choose first item
-                        if ($nav_item.is("li:first-child")) {
-                            $prev = $menu.find(" li:last-child > a");
-                            $prev.focus();
-                            $subnav_prev = $prev.next('ul');
-                            if ($subnav_prev.length === 1) {
-                                $subnav_prev.find("li:first-child > a").focus();
-                            }
-                        }
-                        // else activate prev
-                        else {
-                            $prev = $nav_item.prev().children("a");
-                            $prev.focus();
-                            $subnav_prev = $prev.next('ul');
-                            if ($subnav_prev.length === 1) {
-                                $subnav_prev.find("li:first-child > a").focus();
-                            }
-                        }
-                        event.preventDefault();
-                    }
-
-                    // event tab 
-                    if (event.keyCode == 9 && !event.shiftKey) {
-                        // if we are on last subnav of last item and we go forward
-                        if ($nav_item.is("li:last-child") && $subnav_item.is("li:last-child")) {
-                            // hide submenu
-                            toggleSubnav($subnav, false);
                         }
                     }
 
